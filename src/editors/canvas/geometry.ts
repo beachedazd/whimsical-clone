@@ -72,6 +72,17 @@ export function screenToCanvas(
   }
 }
 
+/** shortest distance from a point to the segment a–b */
+export function distanceToSegment(p: Point, a: Point, b: Point): number {
+  const abx = b.x - a.x
+  const aby = b.y - a.y
+  const lenSq = abx * abx + aby * aby
+  const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq))
+  const cx = a.x + t * abx
+  const cy = a.y + t * aby
+  return Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2)
+}
+
 export function distanceToPoint(p: Point, target: Point): number {
   const dx = p.x - target.x
   const dy = p.y - target.y

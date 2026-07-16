@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BoardContent, Connector, Shape, ShapeKind } from '../../lib/types'
 import {
   applyResize,
+  connectorEndpoint,
+  distanceToSegment,
   getResizeHandle,
   pointInRect,
   rectIntersect,
@@ -107,6 +109,22 @@ export default function BoardCanvas({
     const shapes = contentRef.current.shapes
     for (let i = shapes.length - 1; i >= 0; i--) {
       if (pointInRect(p, shapeRect(shapes[i]))) return shapes[i]
+    }
+    return null
+  }
+
+  /** topmost connector whose line passes near a canvas point */
+  const connectorAt = (p: { x: number; y: number }) => {
+    const cur = contentRef.current
+    const threshold = 10 / viewportRef.current.zoom
+    for (let i = cur.connectors.length - 1; i >= 0; i--) {
+      const c = cur.connectors[i]
+      const from = cur.shapes.find((s) => s.id === c.from)
+      const to = cur.shapes.find((s) => s.id === c.to)
+      if (!from || !to) continue
+      const a = connectorEndpoint(shapeRect(from), shapeRect(to))
+      const b = connectorEndpoint(shapeRect(to), shapeRect(from))
+      if (distanceToSegment(p, a, b) <= threshold) return c
     }
     return null
   }
@@ -222,6 +240,20 @@ export default function BoardCanvas({
         ),
       }
       svgRef.current.setPointerCapture(e.pointerId)
+      return
+    }
+
+    // connector under the pointer: select it — no drag, and crucially no pointer
+    // capture (capture would retarget the derived dblclick away from the line)
+    const hitConnector = connectorAt(p)
+    if (hitConnector) {
+      onSelectionChange(
+        e.shiftKey
+          ? selection.includes(hitConnector.id)
+            ? selection.filter((id) => id !== hitConnector.id)
+            : [...selection, hitConnector.id]
+          : [hitConnector.id],
+      )
       return
     }
 
