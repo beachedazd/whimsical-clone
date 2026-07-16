@@ -60,6 +60,29 @@ export async function createFile(
   return data as FileRow
 }
 
+export async function createFileFromTemplate(
+  workspaceId: string,
+  template: { name: string; type: FileType; content: FileRow['content'] },
+  folderId: string | null = null,
+): Promise<FileRow> {
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) throw userError ?? new Error('Not signed in')
+  const { data, error } = await supabase
+    .from('files')
+    .insert({
+      workspace_id: workspaceId,
+      folder_id: folderId,
+      type: template.type,
+      title: template.name,
+      content: template.content,
+      created_by: userData.user.id,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data as FileRow
+}
+
 export async function updateFileContent(id: string, content: FileRow['content']): Promise<void> {
   const { error } = await supabase.from('files').update({ content }).eq('id', id)
   if (error) throw error

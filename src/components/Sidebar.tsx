@@ -8,7 +8,7 @@ import './Sidebar.css'
 interface SidebarProps {
   workspace: Workspace
   folders: Folder[]
-  currentView?: 'recent' | 'favorites'
+  currentView?: 'recent' | 'favorites' | 'templates'
   currentProjectId?: string
   onCreateProject: () => void
   onRenameProject: (id: string, name: string) => void
@@ -54,13 +54,12 @@ export default function Sidebar({
     { label: 'All boards', id: 'all', icon: 'box' },
     { label: 'Recent', id: 'recent', icon: 'circle' },
     { label: 'Favorites', id: 'favorites', icon: 'star' },
+    { label: 'Templates', id: 'templates', icon: 'templates' },
   ]
 
   const isNavActive = (id: string) => {
     if (id === 'all') return !currentView && !currentProjectId
-    if (id === 'recent') return currentView === 'recent'
-    if (id === 'favorites') return currentView === 'favorites'
-    return false
+    return currentView === id
   }
 
   return (
@@ -87,11 +86,6 @@ export default function Sidebar({
             {item.label}
           </button>
         ))}
-        <button className="nav-item" onClick={() => alert('Coming soon!')}>
-          <span className="nav-icon nav-icon-templates" />
-          Templates
-          <span className="coming-soon-tag">Coming soon</span>
-        </button>
       </nav>
 
       {/* Projects section */}

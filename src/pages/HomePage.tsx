@@ -8,13 +8,16 @@ import {
   listFolders,
   listFavoriteIds,
   createFile,
+  createFileFromTemplate,
   createFolder,
   renameFolder,
   deleteFolder,
 } from '../lib/api'
+import { TEMPLATES, TEMPLATE_SECTIONS, type Template } from '../lib/templates'
 import FileCard from '../components/FileCard'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
+import TemplatePreview from '../components/TemplatePreview'
 import '../pages/home.css'
 
 export default function HomePage() {
@@ -83,7 +86,18 @@ export default function HomePage() {
     return result
   }, [files, view, projectId, favoriteIds, searchQuery])
 
+  const displayedTemplates = useMemo(() => {
+    if (!searchQuery.trim()) return TEMPLATES
+    const q = searchQuery.toLowerCase()
+    return TEMPLATES.filter(
+      (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
+    )
+  }, [searchQuery])
+
   const getHeaderText = (): [string, string] => {
+    if (view === 'templates') {
+      return ['Templates', `${displayedTemplates.length} ready-made starting points`]
+    }
     if (projectId && currentProjectName) {
       return [currentProjectName, `${displayedFiles.length} board${displayedFiles.length !== 1 ? 's' : ''} · sorted by last edited`]
     }
@@ -103,6 +117,16 @@ export default function HomePage() {
       navigate(`${type === 'doc' ? '/doc/' : '/board/'}${file.id}`)
     } catch (err) {
       console.error('Failed to create file:', err)
+    }
+  }
+
+  const handleUseTemplate = async (template: Template) => {
+    if (!workspace) return
+    try {
+      const file = await createFileFromTemplate(workspace.id, template)
+      navigate(`${template.type === 'doc' ? '/doc/' : '/board/'}${file.id}`)
+    } catch (err) {
+      console.error('Failed to create file from template:', err)
     }
   }
 
@@ -171,7 +195,39 @@ export default function HomePage() {
               <p className="home-subtitle">{headerSubtitle}</p>
             </div>
           </div>
-          {displayedFiles.length === 0 && !searchQuery ? (
+          {view === 'templates' ? (
+            displayedTemplates.length === 0 ? (
+              <div className="empty-state">
+                <p>No templates match "{searchQuery}"</p>
+              </div>
+            ) : (
+              TEMPLATE_SECTIONS.map(({ type, title }) => {
+                const sectionTemplates = displayedTemplates.filter((t) => t.type === type)
+                if (sectionTemplates.length === 0) return null
+                return (
+                  <section key={type} className="templates-section">
+                    <h2 className="templates-section-title">{title}</h2>
+                    <div className="templates-grid">
+                      {sectionTemplates.map((t) => (
+                        <button
+                          key={t.id}
+                          className="template-card"
+                          onClick={() => handleUseTemplate(t)}
+                          title={`Create a ${title.toLowerCase().replace(/s$/, '')} from this template`}
+                        >
+                          <TemplatePreview template={t} />
+                          <div className="template-info">
+                            <div className="template-name">{t.name}</div>
+                            <div className="template-desc">{t.description}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )
+              })
+            )
+          ) : displayedFiles.length === 0 && !searchQuery ? (
             <div className="empty-state">
               <p>No boards yet. Create your first board to get started!</p>
               <button className="btn-primary" onClick={() => handleCreateFile('flowchart')}>
