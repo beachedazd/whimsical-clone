@@ -60,12 +60,17 @@ export interface Shape {
   votes?: number
 }
 
+export type Side = 'top' | 'right' | 'bottom' | 'left'
+
 export interface Connector {
   id: string
   from: string // shape id
   to: string // shape id
   label?: string
   labelColor?: string
+  /** attachment sides; omitted = auto-routed from relative shape positions */
+  fromSide?: Side
+  toSide?: Side
 }
 
 export interface BoardContent {

@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import type { Connector, Shape } from '../../lib/types'
-import { shapeRect, connectorEndpoint } from './geometry'
+import { shapeRect, connectorCurve } from './geometry'
 
 interface ConnectorViewProps {
   connector: Connector
@@ -17,16 +17,12 @@ const ConnectorView = memo(function ConnectorView({
   isSelected,
   onDoubleClick,
 }: ConnectorViewProps) {
-  const fromRect = shapeRect(fromShape)
-  const toRect = shapeRect(toShape)
-
-  // Calculate endpoints on shape borders
-  const fromEnd = connectorEndpoint(fromRect, toRect)
-  const toEnd = connectorEndpoint(toRect, fromRect)
-
-  // Calculate label position at midpoint
-  const labelX = (fromEnd.x + toEnd.x) / 2
-  const labelY = (fromEnd.y + toEnd.y) / 2
+  const curve = connectorCurve(
+    shapeRect(fromShape),
+    shapeRect(toShape),
+    connector.fromSide,
+    connector.toSide,
+  )
 
   const getLabelColor = () => {
     if (connector.label === 'Yes') return 'yes'
@@ -37,39 +33,30 @@ const ConnectorView = memo(function ConnectorView({
   return (
     <g className="connector" data-connector-id={connector.id}>
       {/* wide invisible hit area so the line is easy to click */}
-      <line
-        x1={fromEnd.x}
-        y1={fromEnd.y}
-        x2={toEnd.x}
-        y2={toEnd.y}
+      <path
+        d={curve.path}
         stroke="transparent"
-        strokeWidth={14}
+        strokeWidth={16}
+        fill="none"
         pointerEvents="stroke"
         style={{ cursor: 'pointer' }}
         onDoubleClick={onDoubleClick}
       />
-      {/* Connector line with arrowhead */}
-      <line
-        x1={fromEnd.x}
-        y1={fromEnd.y}
-        x2={toEnd.x}
-        y2={toEnd.y}
-        stroke="#a09caa"
+      {/* visible curve with arrowhead */}
+      <path
+        d={curve.path}
+        stroke={isSelected ? 'var(--violet)' : '#a09caa'}
         strokeWidth={2}
         fill="none"
-        markerEnd="url(#arrow-default)"
-        pointerEvents="auto"
-        style={{ cursor: 'pointer' }}
-        onDoubleClick={onDoubleClick}
-        opacity={isSelected ? 0.8 : 1}
-        strokeDasharray={isSelected ? '4' : 'none'}
+        markerEnd={isSelected ? 'url(#arrow-selected)' : 'url(#arrow-default)'}
+        pointerEvents="none"
       />
 
       {/* Label if present */}
       {connector.label && (
         <foreignObject
-          x={labelX - 30}
-          y={labelY - 12}
+          x={curve.mid.x - 30}
+          y={curve.mid.y - 12}
           width={60}
           height={24}
           pointerEvents="auto"

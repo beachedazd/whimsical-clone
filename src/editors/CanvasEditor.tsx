@@ -336,6 +336,7 @@ export default function CanvasEditor() {
             editingId={editingId}
             connectFrom={connectFrom}
             stickyColor={stickyColor}
+            connectable={file.type === 'flowchart'}
             onSelectionChange={setSelection}
             onCommit={handleCommit}
             onTransient={handleTransient}

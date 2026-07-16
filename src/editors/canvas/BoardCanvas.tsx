@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { BoardContent, Connector, Shape, ShapeKind } from '../../lib/types'
+import type { BoardContent, Connector, Shape, ShapeKind, Side } from '../../lib/types'
 import {
   applyResize,
-  connectorEndpoint,
-  distanceToSegment,
+  connectorCurve,
+  distanceToPolyline,
   getResizeHandle,
   pointInRect,
   rectIntersect,
   screenToCanvas,
   shapeRect,
+  sideAnchor,
 } from './geometry'
 import ShapeView from './ShapeView'
 import ConnectorView from './ConnectorView'
@@ -28,6 +29,8 @@ export interface BoardCanvasProps {
   connectFrom: string | null
   /** fill color for newly placed sticky notes */
   stickyColor?: string
+  /** show hover ports and allow drag-to-connect (flowcharts) */
+  connectable?: boolean
   onSelectionChange: (ids: string[]) => void
   /** atomic change → one undo step */
   onCommit: (next: BoardContent) => void
@@ -42,7 +45,7 @@ export interface BoardCanvasProps {
 }
 
 interface DragState {
-  type: 'move' | 'resize' | 'marquee' | 'pan'
+  type: 'move' | 'resize' | 'marquee' | 'pan' | 'connect'
   base: BoardContent
   startX: number
   startY: number
@@ -53,7 +56,12 @@ interface DragState {
   resizeStart?: Shape
   /** plain click on an already-multi-selected shape collapses to it on a movement-free pointerup */
   collapseTo?: string
+  /** connect gesture: source shape, and the port side when started from a port */
+  connectFromShape?: string
+  connectFromSide?: Side
 }
+
+const SIDES: Side[] = ['top', 'right', 'bottom', 'left']
 
 const SHAPE_DEFAULTS: Record<string, [number, number]> = {
   rect: [190, 64],
@@ -76,6 +84,7 @@ export default function BoardCanvas({
   editingId,
   connectFrom,
   stickyColor,
+  connectable,
   onSelectionChange,
   onCommit,
   onTransient,
@@ -90,6 +99,13 @@ export default function BoardCanvas({
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [spaceDown, setSpaceDown] = useState(false)
   const [labelEdit, setLabelEdit] = useState<{ connectorId: string; value: string } | null>(null)
+  const [hoverShapeId, setHoverShapeId] = useState<string | null>(null)
+  /** live connect gesture: cursor position + snapped target shape */
+  const [connectPreview, setConnectPreview] = useState<{
+    x: number
+    y: number
+    targetId: string | null
+  } | null>(null)
 
   // refs so native listeners always see the latest values
   const viewportRef = useRef(viewport)
@@ -113,7 +129,7 @@ export default function BoardCanvas({
     return null
   }
 
-  /** topmost connector whose line passes near a canvas point */
+  /** topmost connector whose curve passes near a canvas point */
   const connectorAt = (p: { x: number; y: number }) => {
     const cur = contentRef.current
     const threshold = 10 / viewportRef.current.zoom
@@ -122,11 +138,46 @@ export default function BoardCanvas({
       const from = cur.shapes.find((s) => s.id === c.from)
       const to = cur.shapes.find((s) => s.id === c.to)
       if (!from || !to) continue
-      const a = connectorEndpoint(shapeRect(from), shapeRect(to))
-      const b = connectorEndpoint(shapeRect(to), shapeRect(from))
-      if (distanceToSegment(p, a, b) <= threshold) return c
+      const curve = connectorCurve(shapeRect(from), shapeRect(to), c.fromSide, c.toSide)
+      if (distanceToPolyline(p, curve.samples) <= threshold) return c
     }
     return null
+  }
+
+  /** create (or re-select an existing) connector and select it */
+  const commitConnector = (fromId: string, toId: string, fromSide?: Side) => {
+    const cur = contentRef.current
+    const existing = cur.connectors.find((c) => c.from === fromId && c.to === toId)
+    if (existing) {
+      onSelectionChange([existing.id])
+      return
+    }
+    const connector: Connector = {
+      id: crypto.randomUUID(),
+      from: fromId,
+      to: toId,
+      ...(fromSide ? { fromSide } : {}),
+    }
+    onCommit({ ...cur, connectors: [...cur.connectors, connector] })
+    onSelectionChange([connector.id])
+  }
+
+  /** start a drag-to-connect gesture from a hover port */
+  const startPortDrag = (e: React.PointerEvent, shapeId: string, side: Side) => {
+    if (e.button !== 0 || !svgRef.current || editingId) return
+    e.stopPropagation()
+    dragRef.current = {
+      type: 'connect',
+      base: contentRef.current,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      connectFromShape: shapeId,
+      connectFromSide: side,
+    }
+    svgRef.current.setPointerCapture(e.pointerId)
+    const p = toCanvas(e.clientX, e.clientY)
+    setConnectPreview({ x: p.x, y: p.y, targetId: null })
   }
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -173,16 +224,27 @@ export default function BoardCanvas({
     if (tool === 'connector') {
       if (!hit) {
         onConnectFromChange(null)
+        setConnectPreview(null)
         return
       }
-      if (connectFrom === null) {
-        onConnectFromChange(hit.id)
-      } else if (connectFrom !== hit.id) {
-        const connector: Connector = { id: crypto.randomUUID(), from: connectFrom, to: hit.id }
-        onCommit({ ...cur, connectors: [...cur.connectors, connector] })
+      if (connectFrom && connectFrom !== hit.id) {
+        // second click of click-click mode completes the connection
+        commitConnector(connectFrom, hit.id)
         onConnectFromChange(null)
+        setConnectPreview(null)
         onToolChange('select')
+        return
       }
+      // press on a shape: drag to a target, or release in place to arm click-click mode
+      dragRef.current = {
+        type: 'connect',
+        base: cur,
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+        connectFromShape: hit.id,
+      }
+      svgRef.current.setPointerCapture(e.pointerId)
       return
     }
 
@@ -265,13 +327,52 @@ export default function BoardCanvas({
   }
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return
     const drag = dragRef.current
-    if (!drag || !svgRef.current) return
-    drag.moved = true
+
+    // no gesture: track hover (for ports) and the click-click connect preview
+    if (!drag) {
+      const p = toCanvas(e.clientX, e.clientY)
+      if (connectable && tool === 'select' && !editingId) {
+        const over = shapeAt(p)
+        if (over) {
+          setHoverShapeId(over.id)
+        } else if (hoverShapeId) {
+          // keep ports visible while the pointer is near the shape edge
+          const s = getShape(hoverShapeId)
+          const pad = 16 / viewportRef.current.zoom
+          if (!s || !pointInRect(p, { x: s.x - pad, y: s.y - pad, w: s.w + pad * 2, h: s.h + pad * 2 })) {
+            setHoverShapeId(null)
+          }
+        }
+      }
+      if (connectFrom) {
+        const t = shapeAt(p)
+        setConnectPreview({ x: p.x, y: p.y, targetId: t && t.id !== connectFrom ? t.id : null })
+      }
+      return
+    }
+
+    // ignore sub-4px jitter so a sloppy click doesn't count as a drag
+    if (!drag.moved) {
+      if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) < 4) {
+        if (drag.type === 'move' || drag.type === 'resize' || drag.type === 'connect') return
+      } else {
+        drag.moved = true
+      }
+    }
     const cur = contentRef.current
     const zoom = viewportRef.current.zoom
 
-    if (drag.type === 'move' && drag.startPositions) {
+    if (drag.type === 'connect' && drag.connectFromShape) {
+      const p = toCanvas(e.clientX, e.clientY)
+      const t = shapeAt(p)
+      setConnectPreview({
+        x: p.x,
+        y: p.y,
+        targetId: t && t.id !== drag.connectFromShape ? t.id : null,
+      })
+    } else if (drag.type === 'move' && drag.startPositions) {
       const dx = (e.clientX - drag.startX) / zoom
       const dy = (e.clientY - drag.startY) / zoom
       onTransient({
@@ -311,6 +412,23 @@ export default function BoardCanvas({
     if (!drag || !svgRef.current) return
     if (svgRef.current.hasPointerCapture(e.pointerId)) {
       svgRef.current.releasePointerCapture(e.pointerId)
+    }
+
+    if (drag.type === 'connect' && drag.connectFromShape) {
+      const p = toCanvas(e.clientX, e.clientY)
+      const target = shapeAt(p)
+      if (target && target.id !== drag.connectFromShape) {
+        commitConnector(drag.connectFromShape, target.id, drag.connectFromSide)
+        onConnectFromChange(null)
+        if (tool === 'connector') onToolChange('select')
+      } else if (!drag.moved && tool === 'connector') {
+        // released in place: arm click-click mode, preview follows the cursor
+        onConnectFromChange(drag.connectFromShape)
+      } else {
+        onConnectFromChange(null)
+      }
+      setConnectPreview(null)
+      return
     }
 
     if (drag.type === 'marquee') {
@@ -394,6 +512,7 @@ export default function BoardCanvas({
       if (e.key === 'Escape') {
         onSelectionChange([])
         onConnectFromChange(null)
+        setConnectPreview(null)
         if (tool !== 'select') onToolChange('select')
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
@@ -439,10 +558,7 @@ export default function BoardCanvas({
     const from = contentRef.current.shapes.find((s) => s.id === connector.from)
     const to = contentRef.current.shapes.find((s) => s.id === connector.to)
     if (!from || !to) return { x: 0, y: 0 }
-    return {
-      x: (from.x + from.w / 2 + to.x + to.w / 2) / 2,
-      y: (from.y + from.h / 2 + to.y + to.h / 2) / 2,
-    }
+    return connectorCurve(shapeRect(from), shapeRect(to), connector.fromSide, connector.toSide).mid
   }
 
   const cursor =
@@ -469,6 +585,7 @@ export default function BoardCanvas({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerLeave={() => !dragRef.current && setHoverShapeId(null)}
         onDoubleClick={handleDoubleClick}
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -483,6 +600,17 @@ export default function BoardCanvas({
             markerUnits="userSpaceOnUse"
           >
             <path d="M0,0 L0,8 L9,4 z" fill="#a09caa" />
+          </marker>
+          <marker
+            id="arrow-selected"
+            markerWidth="10"
+            markerHeight="8"
+            refX="8"
+            refY="4"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+          >
+            <path d="M0,0 L0,8 L9,4 z" fill="var(--violet)" />
           </marker>
         </defs>
 
@@ -511,7 +639,10 @@ export default function BoardCanvas({
               shape={shape}
               isSelected={selection.includes(shape.id)}
               isEditing={editingId === shape.id}
-              isConnectSource={connectFrom === shape.id}
+              isConnectSource={
+                connectFrom === shape.id || dragRef.current?.connectFromShape === shape.id
+              }
+              isConnectTarget={connectPreview?.targetId === shape.id}
               onTextChange={(text) => {
                 const cur = contentRef.current
                 onTransient({
@@ -580,6 +711,71 @@ export default function BoardCanvas({
               pointerEvents="none"
             />
           )}
+
+          {/* live connect preview: from source shape to cursor, snapping to the hovered target */}
+          {(() => {
+            const drag = dragRef.current
+            const sourceId = drag?.type === 'connect' ? drag.connectFromShape : connectFrom
+            if (!sourceId || !connectPreview) return null
+            const source = content.shapes.find((s) => s.id === sourceId)
+            if (!source) return null
+            const target = connectPreview.targetId
+              ? content.shapes.find((s) => s.id === connectPreview.targetId)
+              : null
+            const toRect = target
+              ? shapeRect(target)
+              : { x: connectPreview.x, y: connectPreview.y, w: 0, h: 0 }
+            const curve = connectorCurve(shapeRect(source), toRect, drag?.connectFromSide)
+            return (
+              <path
+                className="connector-preview"
+                d={curve.path}
+                markerEnd="url(#arrow-default)"
+                pointerEvents="none"
+              />
+            )
+          })()}
+
+          {/* hover ports: drag from one to draw a connection */}
+          {connectable &&
+            tool === 'select' &&
+            !editingId &&
+            !dragRef.current &&
+            (() => {
+              const ps =
+                (hoverShapeId && content.shapes.find((s) => s.id === hoverShapeId)) ||
+                (selection.length === 1 && content.shapes.find((s) => s.id === selection[0])) ||
+                null
+              if (!ps || ps.kind === 'text') return null
+              const r = shapeRect(ps)
+              const z = viewport.zoom
+              return (
+                <g className="ports">
+                  {SIDES.map((side) => {
+                    const a = sideAnchor(r, side)
+                    return (
+                      <g key={side}>
+                        <circle
+                          className="port"
+                          cx={a.x}
+                          cy={a.y}
+                          r={5 / z}
+                          strokeWidth={1.5 / z}
+                        />
+                        <circle
+                          className="port-hit"
+                          cx={a.x}
+                          cy={a.y}
+                          r={11 / z}
+                          fill="transparent"
+                          onPointerDown={(e) => startPortDrag(e, ps.id, side)}
+                        />
+                      </g>
+                    )
+                  })}
+                </g>
+              )
+            })()}
 
           {/* connector label editor */}
           {labelEdit &&

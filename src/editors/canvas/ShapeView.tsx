@@ -7,6 +7,7 @@ interface ShapeViewProps {
   isSelected: boolean
   isEditing: boolean
   isConnectSource?: boolean
+  isConnectTarget?: boolean
   onTextChange: (text: string) => void
   onTextBlur: () => void
 }
@@ -16,6 +17,7 @@ const ShapeView = memo(function ShapeView({
   isSelected,
   isEditing,
   isConnectSource,
+  isConnectTarget,
   onTextChange,
   onTextBlur,
 }: ShapeViewProps) {
@@ -143,7 +145,7 @@ const ShapeView = memo(function ShapeView({
   return (
     <g
       transform={transform}
-      className={`shape ${isSelected ? 'selected' : ''} ${kind === 'sticky' ? 'shape-sticky' : ''} ${isConnectSource ? 'connect-source' : ''}`}
+      className={`shape ${isSelected ? 'selected' : ''} ${kind === 'sticky' ? 'shape-sticky' : ''} ${isConnectSource ? 'connect-source' : ''} ${isConnectTarget ? 'connect-target' : ''}`}
       data-shape-id={shape.id}
     >
       {kind !== 'text' && getShapeElement()}

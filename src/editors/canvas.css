@@ -489,6 +489,26 @@
   width: auto;
 }
 
+/* connection ports (shown on shape hover) */
+.port {
+  fill: #fff;
+  stroke: var(--violet);
+  pointer-events: none;
+}
+
+.port-hit {
+  cursor: crosshair;
+}
+
+.ports g:hover .port {
+  fill: var(--violet);
+}
+
+/* shape under the connect cursor: it will become the target on release */
+.shape.connect-target {
+  filter: drop-shadow(0 0 8px oklch(0.62 0.15 180 / 0.9));
+}
+
 /* inline connector label editor */
 .connector-label-input {
   width: 100%;
