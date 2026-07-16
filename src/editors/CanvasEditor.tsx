@@ -1,11 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import type { BoardContent, FileRow } from '../lib/types'
+import type { BoardContent, FileRow, Shape, ShapeKind } from '../lib/types'
+import { STICKY_COLORS } from '../lib/types'
 import { getFile, renameFile, updateFileContent } from '../lib/api'
 import { useHistory } from './canvas/useHistory'
 import BoardCanvas from './canvas/BoardCanvas'
 import type { Viewport } from './canvas/BoardCanvas'
+import WireframeLibrary from './canvas/WireframeLibrary'
+import InspectorPanel from './canvas/InspectorPanel'
+import StickyToolbar from './canvas/StickyToolbar'
 import './canvas.css'
+
+const WF_DEFAULTS: Partial<Record<ShapeKind, [number, number]>> = {
+  'wf-button': [120, 40],
+  'wf-input': [180, 40],
+  'wf-text': [160, 60],
+  'wf-image': [160, 110],
+  'wf-toggle': [56, 28],
+  'wf-tabs': [180, 36],
+  'wf-phone': [300, 620],
+}
 
 type Tool = 'select' | 'rect' | 'pill' | 'diamond' | 'ellipse' | 'text' | 'sticky' | 'connector'
 type SaveState = 'saved' | 'saving' | 'dirty'
@@ -45,6 +59,7 @@ export default function CanvasEditor() {
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [shareFlash, setShareFlash] = useState(false)
+  const [stickyColor, setStickyColor] = useState<string>(STICKY_COLORS[0])
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const fileIdRef = useRef<string | undefined>(id)
@@ -60,6 +75,7 @@ export default function CanvasEditor() {
         setTitle(f.title)
         const c = f.content as BoardContent
         reset(c && Array.isArray(c.shapes) ? c : { shapes: [], connectors: [] })
+        if (f.type === 'sticky') setTool('sticky')
         setSaveState('saved')
         setLoading(false)
       })
@@ -191,6 +207,60 @@ export default function CanvasEditor() {
     })
   }
 
+  /** canvas-coordinate point at the center of the visible viewport */
+  const viewportCenter = () => {
+    const vp = document.querySelector<HTMLElement>('.canvas-viewport')
+    const cw = vp?.clientWidth ?? 800
+    const ch = vp?.clientHeight ?? 600
+    return {
+      x: (cw / 2 - viewport.x) / viewport.zoom,
+      y: (ch / 2 - viewport.y) / viewport.zoom,
+    }
+  }
+
+  const addWireframeElement = (kind: ShapeKind) => {
+    const [w, h] = WF_DEFAULTS[kind] ?? [160, 90]
+    const c = viewportCenter()
+    const shape: Shape = {
+      id: crypto.randomUUID(),
+      kind,
+      x: Math.round(c.x - w / 2),
+      y: Math.round(c.y - h / 2),
+      w,
+      h,
+      text: '',
+      color: '#b6b2bd',
+    }
+    handleCommit({ ...content, shapes: [...content.shapes, shape] })
+    setSelection([shape.id])
+  }
+
+  const selectedShape =
+    selection.length === 1 ? (content.shapes.find((s) => s.id === selection[0]) ?? null) : null
+
+  const patchSelectedShape = (patch: Partial<Shape>) => {
+    if (!selectedShape) return
+    handleCommit({
+      ...content,
+      shapes: content.shapes.map((s) => (s.id === selectedShape.id ? { ...s, ...patch } : s)),
+    })
+  }
+
+  const pickStickyColor = (color: string) => {
+    setStickyColor(color)
+    if (selectedShape?.kind === 'sticky') {
+      patchSelectedShape({ color })
+    } else {
+      setTool('sticky')
+    }
+  }
+
+  const voteSelectedSticky = () => {
+    if (selectedShape?.kind === 'sticky') {
+      patchSelectedShape({ votes: Math.min((selectedShape.votes ?? 0) + 1, 10) })
+    }
+  }
+
   const share = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href)
@@ -237,46 +307,66 @@ export default function CanvasEditor() {
       </div>
 
       <div className="canvas-container">
-        <div className="canvas-toolbar">
-          {TOOLS.map((t) => (
-            <button
-              key={t.id}
-              className={`toolbar-btn ${tool === t.id ? 'active' : ''}`}
-              onClick={() => {
-                setTool(t.id)
-                setConnectFrom(null)
-              }}
-              title={t.title}
-            >
-              <div className={t.icon}>{t.id === 'text' ? 'T' : ''}</div>
-            </button>
-          ))}
+        {file.type === 'wireframe' && <WireframeLibrary onAdd={addWireframeElement} />}
+
+        <div className="canvas-stage">
+          {file.type === 'flowchart' && (
+            <div className="canvas-toolbar">
+              {TOOLS.map((t) => (
+                <button
+                  key={t.id}
+                  className={`toolbar-btn ${tool === t.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setTool(t.id)
+                    setConnectFrom(null)
+                  }}
+                  title={t.title}
+                >
+                  <div className={t.icon}>{t.id === 'text' ? 'T' : ''}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <BoardCanvas
+            content={content}
+            selection={selection}
+            tool={tool}
+            viewport={viewport}
+            editingId={editingId}
+            connectFrom={connectFrom}
+            stickyColor={stickyColor}
+            onSelectionChange={setSelection}
+            onCommit={handleCommit}
+            onTransient={handleTransient}
+            onGestureEnd={handleGestureEnd}
+            onViewportChange={setViewport}
+            onEditingChange={setEditingId}
+            onConnectFromChange={setConnectFrom}
+            onToolChange={(t) => setTool(t as Tool)}
+          />
+
+          {file.type === 'sticky' && (
+            <StickyToolbar
+              activeColor={stickyColor}
+              onPick={pickStickyColor}
+              canVote={selectedShape?.kind === 'sticky'}
+              onVote={voteSelectedSticky}
+            />
+          )}
+
+          <div className="canvas-zoom-pill">
+            <button className="zoom-btn" onClick={() => zoomBy(1 / 1.2)}>−</button>
+            <span className="zoom-value">{Math.round(viewport.zoom * 100)}%</span>
+            <button className="zoom-btn" onClick={() => zoomBy(1.2)}>+</button>
+            <div className="zoom-divider" />
+            <button className="zoom-btn" onClick={zoomFit}>Fit</button>
+          </div>
         </div>
 
-        <BoardCanvas
-          content={content}
-          selection={selection}
-          tool={tool}
-          viewport={viewport}
-          editingId={editingId}
-          connectFrom={connectFrom}
-          onSelectionChange={setSelection}
-          onCommit={handleCommit}
-          onTransient={handleTransient}
-          onGestureEnd={handleGestureEnd}
-          onViewportChange={setViewport}
-          onEditingChange={setEditingId}
-          onConnectFromChange={setConnectFrom}
-          onToolChange={(t) => setTool(t as Tool)}
-        />
-
-        <div className="canvas-zoom-pill">
-          <button className="zoom-btn" onClick={() => zoomBy(1 / 1.2)}>−</button>
-          <span className="zoom-value">{Math.round(viewport.zoom * 100)}%</span>
-          <button className="zoom-btn" onClick={() => zoomBy(1.2)}>+</button>
-          <div className="zoom-divider" />
-          <button className="zoom-btn" onClick={zoomFit}>Fit</button>
-        </div>
+        {file.type === 'wireframe' && (
+          <InspectorPanel shape={selectedShape} onChange={patchSelectedShape} />
+        )}
       </div>
     </div>
   )

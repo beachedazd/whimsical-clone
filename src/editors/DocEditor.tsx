@@ -143,7 +143,13 @@ export default function DocEditor() {
   const updateToolbar = useCallback(() => {
     const selection = window.getSelection()
 
-    if (!selection || selection.toString().length === 0) {
+    if (
+      !selection ||
+      selection.toString().length === 0 ||
+      !editorRef.current ||
+      !selection.anchorNode ||
+      !editorRef.current.contains(selection.anchorNode)
+    ) {
       setToolbarVisible(false)
       return
     }
@@ -207,6 +213,12 @@ export default function DocEditor() {
     setSaveStatus('unsaved')
     scanHeadings()
   }, [scanHeadings])
+
+  // Toolbar follows the document selection (works for keyboard + drag selections)
+  useEffect(() => {
+    document.addEventListener('selectionchange', updateToolbar)
+    return () => document.removeEventListener('selectionchange', updateToolbar)
+  }, [updateToolbar])
 
   // Handle editor selection
   const handleEditorMouseUp = useCallback(() => {

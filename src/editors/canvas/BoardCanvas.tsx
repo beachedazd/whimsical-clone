@@ -24,6 +24,8 @@ export interface BoardCanvasProps {
   viewport: Viewport
   editingId: string | null
   connectFrom: string | null
+  /** fill color for newly placed sticky notes */
+  stickyColor?: string
   onSelectionChange: (ids: string[]) => void
   /** atomic change → one undo step */
   onCommit: (next: BoardContent) => void
@@ -69,6 +71,7 @@ export default function BoardCanvas({
   viewport,
   editingId,
   connectFrom,
+  stickyColor,
   onSelectionChange,
   onCommit,
   onTransient,
@@ -129,7 +132,12 @@ export default function BoardCanvas({
         w: dw,
         h: dh,
         text: '',
-        color: tool === 'sticky' ? '#ffe28a' : tool === 'diamond' ? '#e8b24a' : 'var(--violet)',
+        color:
+          tool === 'sticky'
+            ? (stickyColor ?? '#ffe28a')
+            : tool === 'diamond'
+              ? '#e8b24a'
+              : 'var(--violet)',
         ...(tool === 'sticky' ? { rotation: Math.round((Math.random() * 4 - 2) * 10) / 10 } : {}),
       }
       onCommit({ ...cur, shapes: [...cur.shapes, newShape] })

@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import type { Shape } from '../../lib/types'
+import WireframeShape from './WireframeShape'
 
 interface ShapeViewProps {
   shape: Shape
@@ -95,6 +96,7 @@ const ShapeView = memo(function ShapeView({
       case 'text':
         return null // Text-only shapes don't have a shape element
       default:
+        if (kind.startsWith('wf-')) return <WireframeShape shape={shape} />
         return <rect {...shapeProps} rx={10} ry={10} />
     }
   }
@@ -146,7 +148,8 @@ const ShapeView = memo(function ShapeView({
     >
       {kind !== 'text' && getShapeElement()}
 
-      {/* Label / Text Area */}
+      {/* Label / Text Area (wireframe elements draw their own text) */}
+      {(isEditing || !kind.startsWith('wf-')) && (
       <foreignObject
         x={0}
         y={0}
@@ -181,6 +184,7 @@ const ShapeView = memo(function ShapeView({
           )}
         </div>
       </foreignObject>
+      )}
     </g>
   )
 })

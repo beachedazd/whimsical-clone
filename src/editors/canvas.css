@@ -473,3 +473,18 @@
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* per-type side panels (wireframe editor) */
+.canvas-container {
+  display: flex;
+}
+.canvas-stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+.canvas-stage > .canvas-viewport {
+  flex: 1;
+  width: auto;
+}

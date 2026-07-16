@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FileType } from '../lib/types'
+import { useAuth } from '../lib/auth'
 import './TopBar.css'
 
 interface TopBarProps {
@@ -8,17 +9,37 @@ interface TopBarProps {
   onCreateBoard: (type: FileType) => void
 }
 
-export default function TopBar({
-  searchQuery,
-  onSearchChange,
-  onCreateBoard,
-}: TopBarProps) {
+export default function TopBar({ searchQuery, onSearchChange, onCreateBoard }: TopBarProps) {
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const { session } = useAuth()
 
-  const getAvatarColor = (index: number) => {
-    const colors = ['oklch(0.7 0.12 40)', 'oklch(0.7 0.12 280)', 'oklch(0.7 0.12 180)']
-    return colors[index % colors.length]
-  }
+  const name =
+    (session?.user.user_metadata?.display_name as string | undefined) ??
+    session?.user.email ??
+    '?'
+  const initials = name
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join('')
+
+  useEffect(() => {
+    if (!createMenuOpen) return
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setCreateMenuOpen(false)
+      }
+    }
+    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && setCreateMenuOpen(false)
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', onEsc)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', onEsc)
+    }
+  }, [createMenuOpen])
 
   const handleCreateBoard = (type: FileType) => {
     onCreateBoard(type)
@@ -40,16 +61,13 @@ export default function TopBar({
 
       <div className="top-bar-right">
         <div className="top-bar-avatars">
-          <div className="avatar" style={{ backgroundColor: getAvatarColor(0) }}>MK</div>
-          <div className="avatar" style={{ backgroundColor: getAvatarColor(1) }}>JT</div>
-          <div className="avatar" style={{ backgroundColor: getAvatarColor(2) }}>AS</div>
+          <div className="avatar" style={{ backgroundColor: 'oklch(0.7 0.12 180)' }} title={name}>
+            {initials}
+          </div>
         </div>
 
-        <div className="top-bar-create">
-          <button
-            className="btn-primary"
-            onClick={() => setCreateMenuOpen(!createMenuOpen)}
-          >
+        <div className="top-bar-create" ref={menuRef}>
+          <button className="btn-primary" onClick={() => setCreateMenuOpen(!createMenuOpen)}>
             + New board
           </button>
           {createMenuOpen && (
