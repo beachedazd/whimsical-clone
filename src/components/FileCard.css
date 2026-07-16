@@ -1,0 +1,225 @@
+.file-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-card:hover {
+  border-color: var(--border-mid);
+  box-shadow: var(--shadow-card);
+}
+
+.file-card:hover .file-menu-button {
+  opacity: 1;
+}
+
+.file-thumbnail {
+  height: 130px;
+  position: relative;
+  overflow: hidden;
+}
+
+.file-thumbnail-flowchart {
+  background: var(--violet-soft);
+}
+
+.file-thumbnail-wireframe {
+  background: var(--teal-soft);
+}
+
+.file-thumbnail-sticky {
+  background: var(--sticky-bg);
+}
+
+.file-thumbnail-doc {
+  background: #fff;
+  border-bottom: 1px solid var(--border-mid);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 22px;
+  gap: 8px;
+}
+
+/* Flowchart CSS art */
+.flowchart-box {
+  position: absolute;
+  width: 64px;
+  height: 30px;
+  background: #fff;
+  border: 2px solid var(--violet);
+  border-radius: 6px;
+}
+
+.flowchart-line {
+  position: absolute;
+  left: 88px;
+  top: 40px;
+  width: 30px;
+  height: 2px;
+  background: var(--violet);
+}
+
+/* Wireframe CSS art */
+.wireframe-frame {
+  position: absolute;
+  width: 70px;
+  height: 90px;
+  background: #fff;
+  border: 2px solid var(--ink-ghost);
+  border-radius: 6px;
+}
+
+.wireframe-bar {
+  position: absolute;
+  width: 54px;
+  height: 8px;
+  background: var(--border-mid);
+  border-radius: 3px;
+}
+
+/* Sticky CSS art */
+.sticky-square {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Doc CSS art */
+.doc-title {
+  width: 70%;
+  height: 10px;
+  background: var(--ink);
+  border-radius: 3px;
+  opacity: 0.85;
+}
+
+.doc-line {
+  width: 100%;
+  height: 7px;
+  background: var(--border-mid);
+  border-radius: 3px;
+}
+
+.file-info {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.file-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.file-meta {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.file-favorite-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--violet);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.file-menu-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink-faint);
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-mid);
+}
+
+.file-menu-button:hover {
+  background: var(--bg-input);
+  color: var(--ink);
+}
+
+.file-card:hover .file-menu-button {
+  opacity: 1;
+}
+
+/* Context menu */
+.file-card-menu {
+  position: absolute;
+  top: 36px;
+  right: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-float);
+  z-index: 1000;
+  min-width: 180px;
+  overflow: hidden;
+}
+
+.file-card-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--ink);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.file-card-menu button:hover {
+  background: var(--bg-input);
+}
+
+.file-card-menu button.menu-delete {
+  color: var(--red);
+}
+
+.menu-submenu {
+  position: relative;
+}
+
+.menu-submenu-toggle {
+  position: relative;
+}
+
+.menu-submenu-content {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-float);
+  flex-direction: column;
+  min-width: 150px;
+  margin-left: 4px;
+}
+
+.menu-submenu:hover .menu-submenu-content {
+  display: flex;
+}

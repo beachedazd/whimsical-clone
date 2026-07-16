@@ -134,7 +134,7 @@ export async function deleteFolder(id: string): Promise<void> {
 export async function listFavoriteIds(): Promise<Set<string>> {
   const { data, error } = await supabase.from('favorites').select('file_id')
   if (error) throw error
-  return new Set((data ?? []).map((r) => r.file_id as string))
+  return new Set((data ?? []).map((r: any) => r.file_id as string))
 }
 
 export async function toggleFavorite(fileId: string, isFavorite: boolean): Promise<void> {

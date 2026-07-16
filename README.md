@@ -1,32 +1,42 @@
-# React + TypeScript + Vite
+# Breeze — a Whimsical clone
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Collaborative visual workspace: flowcharts, wireframes, sticky-note boards and docs on a shared canvas. Built from the "Breeze" design handoff for feature parity with [whimsical.com/home](https://whimsical.com/home).
 
-Currently, two official plugins are available:
+**Live:** https://breeze-hq.netlify.app
+**Repo:** https://github.com/beachedazd/whimsical-clone
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+- **Frontend:** Vite + React 19 + TypeScript, plain CSS (design tokens in `src/index.css`)
+- **Backend:** Supabase (Postgres + RLS, auth, auto-provisioned personal workspace on signup)
+- **Hosting:** Netlify (SPA redirects via `netlify.toml`)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the Oxlint configuration
+- Marketing landing page + email/password auth
+- Workspace dashboard: projects (folders), recent/favorites views, search, file cards with type-specific thumbnails, rename/duplicate/move/delete/favorite
+- Flowchart editor: shapes (rect/pill/diamond/ellipse/text/sticky), connectors with labels & arrowheads, drag/resize, marquee select, pan/zoom/fit, undo/redo, autosave
+- Wireframe editor: UI element library (button, input, image, toggle, tabs, phone frame) + inspector
+- Sticky board: colored notes with vote dots
+- Doc editor: rich text (headings, lists, quotes, code), floating format toolbar, outline sidebar, autosave
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Development
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+cp .env.example .env   # fill in your Supabase project URL + anon key
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Database schema lives in `supabase/migrations/`. Apply with:
+
+```sh
+supabase link --project-ref <your-ref>
+supabase db push
+```
+
+## Architecture notes
+
+- All data access goes through `src/lib/api.ts`; RLS policies enforce workspace membership server-side (`security definer` helper avoids recursive policies).
+- Board/doc contents are stored as `jsonb` in `files.content`; autosave is debounced client-side.
+- A Postgres trigger on `auth.users` creates the profile, personal workspace and owner membership at signup.

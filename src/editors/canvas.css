@@ -1,0 +1,475 @@
+/* Canvas Editor Styles */
+
+.canvas-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-app);
+  overflow: hidden;
+}
+
+/* Top Bar */
+.canvas-topbar {
+  height: 52px;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.canvas-topbar-logo {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.canvas-topbar-title {
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  padding: 0;
+  cursor: text;
+  font-family: var(--font-display);
+  min-width: 100px;
+}
+
+.canvas-topbar-title:focus {
+  outline: none;
+  background: var(--bg-input);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
+.canvas-topbar-status {
+  font-size: 13px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.canvas-topbar-spacer {
+  flex: 1;
+}
+
+.canvas-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.canvas-topbar-share {
+  padding: 7px 16px;
+  border-radius: 9px;
+}
+
+.canvas-topbar-share:active {
+  filter: brightness(0.88);
+}
+
+/* Main Canvas Area */
+.canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas-viewport {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.canvas-dot-grid {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(var(--dot-grid) 1.5px, transparent 1.5px);
+}
+
+.canvas-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  cursor: default;
+  touch-action: none;
+}
+
+.canvas-svg.grab {
+  cursor: grab;
+}
+
+.canvas-svg.grabbing {
+  cursor: grabbing;
+}
+
+.canvas-svg.crosshair {
+  cursor: crosshair;
+}
+
+/* Left Toolbar */
+.canvas-toolbar {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 8px;
+  z-index: 5;
+}
+
+.toolbar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border: none;
+  padding: 0;
+  position: relative;
+}
+
+.toolbar-btn:hover {
+  background: var(--bg-input);
+}
+
+.toolbar-btn.active {
+  background: var(--violet-soft);
+}
+
+.toolbar-btn[title] {
+  position: relative;
+}
+
+.toolbar-btn[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 100%;
+  margin-left: 8px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+  font-weight: 500;
+}
+
+/* Shape Icons */
+.icon-select {
+  width: 2px;
+  height: 10px;
+  background: var(--ink-mid);
+  transform: skew(-20deg);
+}
+
+.icon-rect {
+  width: 14px;
+  height: 14px;
+  border: 2.5px solid var(--ink-mid);
+  border-radius: 3px;
+}
+
+.icon-rect.active {
+  border-color: var(--violet-deep);
+  background: rgba(98, 21, 168, 0.1);
+}
+
+.icon-pill {
+  width: 14px;
+  height: 10px;
+  border: 2.5px solid var(--ink-mid);
+  border-radius: 50%;
+}
+
+.icon-diamond {
+  width: 13px;
+  height: 13px;
+  border: 2.5px solid var(--ink-mid);
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+.icon-ellipse {
+  width: 16px;
+  height: 12px;
+  border: 2.5px solid var(--ink-mid);
+  border-radius: 50%;
+}
+
+.icon-connector {
+  width: 18px;
+  height: 2.5px;
+  background: var(--ink-mid);
+  transform: rotate(-45deg);
+}
+
+.icon-text {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink-mid);
+  font-family: var(--font-display);
+}
+
+.icon-sticky {
+  width: 16px;
+  height: 12px;
+  background: #ffe28a;
+  border-radius: 2px;
+  transform: rotate(-4deg);
+}
+
+/* Zoom Pill */
+.canvas-zoom-pill {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  box-shadow: var(--shadow-float);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-soft);
+  z-index: 4;
+}
+
+.zoom-btn {
+  padding: 2px 8px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-weight: inherit;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.zoom-btn:hover {
+  color: var(--ink);
+}
+
+.zoom-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* Shapes on Canvas */
+.shape {
+  cursor: move;
+  filter: drop-shadow(0 3px 10px rgba(40, 35, 60, 0.06));
+}
+
+.shape.selected {
+  filter: drop-shadow(0 3px 10px rgba(40, 35, 60, 0.1));
+}
+
+.shape rect,
+.shape ellipse,
+.shape polygon {
+  cursor: move;
+}
+
+.shape-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 15px;
+  pointer-events: none;
+  overflow: hidden;
+  text-align: center;
+}
+
+.shape-label textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  font-size: inherit;
+  padding: 8px 12px;
+  resize: none;
+  box-sizing: border-box;
+}
+
+.shape-label textarea:focus {
+  outline: 2px solid var(--violet);
+  outline-offset: -1px;
+}
+
+.shape-sticky {
+  filter: drop-shadow(0 3px 10px rgba(40, 35, 60, 0.08));
+}
+
+.shape-label-sticky {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 14px;
+  white-space: pre-wrap;
+}
+
+.shape-label-sticky textarea {
+  font-size: 13px;
+  padding: 14px;
+}
+
+.sticky-votes {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.sticky-vote {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--violet);
+}
+
+/* Selection Box */
+.selection-box {
+  position: absolute;
+  border: 1px solid var(--violet);
+  background: rgba(98, 21, 168, 0.05);
+  pointer-events: none;
+}
+
+.selection-outline {
+  position: absolute;
+  border: 2px solid var(--violet);
+  border-radius: 12px;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.selection-outline.with-handles {
+  border-radius: 0;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 2px solid var(--violet);
+  border-radius: 3px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.resize-handle.tl {
+  top: -6px;
+  left: -6px;
+  cursor: nwse-resize;
+}
+
+.resize-handle.tr {
+  top: -6px;
+  right: -6px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.bl {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.br {
+  bottom: -6px;
+  right: -6px;
+  cursor: nwse-resize;
+}
+
+/* Connectors */
+.connector-label {
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--bg-canvas);
+  padding: 0 6px;
+  pointer-events: auto;
+}
+
+.connector-label.yes {
+  color: #4a9b6e;
+}
+
+.connector-label.no {
+  color: #c05b5b;
+}
+
+.connector-label.neutral {
+  color: var(--ink-mid);
+}
+
+/* Marker for connectors */
+.connector-arrow {
+  fill: #a09caa;
+}
+
+/* Connector being drawn */
+.connector-preview {
+  stroke: #a09caa;
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 4;
+  opacity: 0.7;
+}
+
+/* Connector source glow */
+.connector-source {
+  filter: drop-shadow(0 0 8px rgba(98, 21, 168, 0.4));
+}
+
+/* Marquee selection */
+.marquee {
+  position: absolute;
+  border: 1px solid var(--violet);
+  background: rgba(98, 21, 168, 0.08);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* connector source highlight */
+.shape.connect-source {
+  filter: drop-shadow(0 0 6px oklch(0.62 0.15 280 / 0.8));
+}
+
+/* prevent text selection while dragging */
+.canvas-svg .shape-label div {
+  user-select: none;
+  -webkit-user-select: none;
+}
