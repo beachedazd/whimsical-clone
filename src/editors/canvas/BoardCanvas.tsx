@@ -49,6 +49,8 @@ interface DragState {
   resizeCorner?: 'tl' | 'tr' | 'bl' | 'br'
   resizeShapeId?: string
   resizeStart?: Shape
+  /** plain click on an already-multi-selected shape collapses to it on a movement-free pointerup */
+  collapseTo?: string
 }
 
 const SHAPE_DEFAULTS: Record<string, [number, number]> = {
@@ -85,6 +87,7 @@ export default function BoardCanvas({
   const dragRef = useRef<DragState | null>(null)
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [spaceDown, setSpaceDown] = useState(false)
+  const [labelEdit, setLabelEdit] = useState<{ connectorId: string; value: string } | null>(null)
 
   // refs so native listeners always see the latest values
   const viewportRef = useRef(viewport)
@@ -191,12 +194,17 @@ export default function BoardCanvas({
     if (hit) {
       // compute the selection this drag applies to (state update is async)
       let nextSelection: string[]
+      let collapseTo: string | undefined
       if (e.shiftKey) {
         nextSelection = selection.includes(hit.id)
           ? selection.filter((id) => id !== hit.id)
           : [...selection, hit.id]
+      } else if (selection.includes(hit.id)) {
+        // keep the group for dragging, but collapse to this shape if it's just a click
+        nextSelection = selection
+        if (selection.length > 1) collapseTo = hit.id
       } else {
-        nextSelection = selection.includes(hit.id) ? selection : [hit.id]
+        nextSelection = [hit.id]
       }
       onSelectionChange(nextSelection)
 
@@ -206,6 +214,7 @@ export default function BoardCanvas({
         startX: e.clientX,
         startY: e.clientY,
         moved: false,
+        collapseTo,
         startPositions: new Map(
           cur.shapes
             .filter((s) => nextSelection.includes(s.id))
@@ -287,6 +296,8 @@ export default function BoardCanvas({
     // one undo step per completed move/resize gesture
     if ((drag.type === 'move' || drag.type === 'resize') && drag.moved) {
       onGestureEnd(drag.base)
+    } else if (drag.type === 'move' && !drag.moved && drag.collapseTo) {
+      onSelectionChange([drag.collapseTo])
     }
   }
 
@@ -380,14 +391,26 @@ export default function BoardCanvas({
     }
   }, [editingId, selection, tool, deleteSelection, onSelectionChange, onConnectFromChange, onToolChange, onCommit])
 
-  const editConnectorLabel = (connector: Connector) => {
-    const label = window.prompt('Connector label', connector.label ?? '')
-    if (label === null) return
+  const commitConnectorLabel = () => {
+    if (!labelEdit) return
     const cur = contentRef.current
     onCommit({
       ...cur,
-      connectors: cur.connectors.map((c) => (c.id === connector.id ? { ...c, label } : c)),
+      connectors: cur.connectors.map((c) =>
+        c.id === labelEdit.connectorId ? { ...c, label: labelEdit.value } : c,
+      ),
     })
+    setLabelEdit(null)
+  }
+
+  const connectorMidpoint = (connector: Connector) => {
+    const from = contentRef.current.shapes.find((s) => s.id === connector.from)
+    const to = contentRef.current.shapes.find((s) => s.id === connector.to)
+    if (!from || !to) return { x: 0, y: 0 }
+    return {
+      x: (from.x + from.w / 2 + to.x + to.w / 2) / 2,
+      y: (from.y + from.h / 2 + to.y + to.h / 2) / 2,
+    }
   }
 
   const cursor =
@@ -443,7 +466,9 @@ export default function BoardCanvas({
                 fromShape={fromShape}
                 toShape={toShape}
                 isSelected={selection.includes(connector.id)}
-                onDoubleClick={() => editConnectorLabel(connector)}
+                onDoubleClick={() =>
+                  setLabelEdit({ connectorId: connector.id, value: connector.label ?? '' })
+                }
               />
             )
           })}
@@ -523,6 +548,34 @@ export default function BoardCanvas({
               pointerEvents="none"
             />
           )}
+
+          {/* connector label editor */}
+          {labelEdit &&
+            (() => {
+              const c = content.connectors.find((k) => k.id === labelEdit.connectorId)
+              if (!c) return null
+              const mid = connectorMidpoint(c)
+              return (
+                <foreignObject x={mid.x - 60} y={mid.y - 16} width={120} height={32}>
+                  <input
+                    className="connector-label-input"
+                    value={labelEdit.value}
+                    placeholder="Label"
+                    onChange={(e) => setLabelEdit({ ...labelEdit, value: e.target.value })}
+                    onBlur={commitConnectorLabel}
+                    onKeyDown={(e) => {
+                      e.stopPropagation()
+                      if (e.key === 'Enter') commitConnectorLabel()
+                      if (e.key === 'Escape') setLabelEdit(null)
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    ref={(el) => {
+                      if (el) setTimeout(() => el.focus(), 0)
+                    }}
+                  />
+                </foreignObject>
+              )
+            })()}
         </g>
       </svg>
     </div>

@@ -36,6 +36,18 @@ const ConnectorView = memo(function ConnectorView({
 
   return (
     <g className="connector" data-connector-id={connector.id}>
+      {/* wide invisible hit area so the line is easy to click */}
+      <line
+        x1={fromEnd.x}
+        y1={fromEnd.y}
+        x2={toEnd.x}
+        y2={toEnd.y}
+        stroke="transparent"
+        strokeWidth={14}
+        pointerEvents="stroke"
+        style={{ cursor: 'pointer' }}
+        onDoubleClick={onDoubleClick}
+      />
       {/* Connector line with arrowhead */}
       <line
         x1={fromEnd.x}
